@@ -1,162 +1,183 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-
-<title>VEMU Smart Attendance</title>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
+<!DOCTYPE html><html><head><title>VEMU Smart Attendance</title><script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script><script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
 
 body{
 font-family:Arial;
-background:linear-gradient(135deg,#1e3a8a,#0f172a,#0ea5e9);
+margin:0;
+background:linear-gradient(135deg,#0f172a,#1e3a8a,#0284c7);
 color:white;
 text-align:center;
 }
 
 header{
-background:linear-gradient(90deg,#0284c7,#38bdf8);
-padding:30px;
-font-size:32px;
-font-weight:bold;
+font-size:30px;
+padding:20px;
+background:#0284c7;
+box-shadow:0 0 20px #000;
 }
 
-.dashboard{
+.cards{
 display:flex;
 justify-content:center;
-gap:30px;
+flex-wrap:wrap;
 margin-top:20px;
 }
 
 .card{
 background:#1e293b;
+margin:10px;
 padding:20px;
+width:180px;
 border-radius:10px;
-width:200px;
 transition:0.3s;
 }
 
 .card:hover{
-transform:scale(1.1);
+transform:scale(1.08);
+}
+
+.card h1{
+font-size:34px;
+margin:5px;
+}
+
+.present{color:#22c55e}
+.late{color:#f59e0b}
+.permit{color:#3b82f6}
+.total{color:#38bdf8}
+
+.graphRow{
+display:flex;
+justify-content:center;
+flex-wrap:wrap;
+margin-top:30px;
+}
+
+.graphBox{
+background:#1e293b;
+padding:20px;
+border-radius:10px;
+margin:10px;
 }
 
 table{
 width:90%;
 margin:auto;
 margin-top:30px;
-border-collapse:collapse;
 background:#1e293b;
+border-collapse:collapse;
 }
 
 th{
 background:#0284c7;
-padding:12px;
+padding:10px;
 }
 
 td{
-padding:10px;
-border-bottom:1px solid #475569;
+padding:8px;
 }
 
-.student{
-background:#334155;
-padding:10px;
-margin:5px;
-cursor:pointer;
+.statusPresent{color:#22c55e;font-weight:bold}
+.statusLate{color:#f59e0b;font-weight:bold}
+.statusPermit{color:#3b82f6;font-weight:bold}
+.statusUnknown{color:#ef4444;font-weight:bold}
+
+img{
+width:50px;
+border-radius:50%;
 }
 
 button{
+padding:10px 20px;
+margin-top:20px;
 background:#22c55e;
 border:none;
-padding:10px 20px;
-color:white;
-font-size:16px;
+border-radius:8px;
+cursor:pointer;
+}
+
+#hodPanel{
+display:none;
+background:#1e293b;
+padding:20px;
+margin-top:20px;
+}
+
+.studentBtn{
+background:#334155;
+padding:10px;
+margin:6px;
 border-radius:6px;
 cursor:pointer;
 }
 
-</style>
-
-</head>
-
-<body>
-
-<header>
-VEMU INSTITUTION OF TECHNOLOGY
-<br>
+</style></head><body><header>VEMU INSTITUTION OF TECHNOLOGY
 SMART ATTENDANCE SYSTEM
-</header>
 
-<div class="dashboard">
-
-<div class="card">
+</header><div class="cards"><div class="card">
+<h3>Total Students</h3>
+<h1 id="total" class="total">0</h1>
+</div><div class="card">
 <h3>Present</h3>
-<h1 id="present">0</h1>
-</div>
-
-<div class="card">
+<h1 id="present" class="present">0</h1>
+</div><div class="card">
 <h3>Late</h3>
-<h1 id="late">0</h1>
-</div>
+<h1 id="late" class="late">0</h1>
+</div><div class="card">
+<h3>Permitted</h3>
+<h1 id="permit" class="permit">0</h1>
+</div></div><div class="graphRow"><div class="graphBox">
+<canvas id="barChart" width="280" height="200"></canvas>
+</div><div class="graphBox">
+<canvas id="pieChart" width="280" height="200"></canvas>
+</div></div><button onclick="hodLogin()">HOD Permission</button>
 
-<div class="card">
-<h3>Attendance %</h3>
-<h1 id="percent">0%</h1>
-</div>
-
-</div>
-
-<canvas id="chart"></canvas>
-
-<br>
-
-<button onclick="login()">HOD Permission</button>
-
-<div id="students"></div>
-
-<table>
-
-<tr>
+<div id="hodPanel"><h3>Registered Students</h3><div id="students"></div></div><table><tr>
+<th>Photo</th>
 <th>Name</th>
 <th>Date</th>
 <th>Time</th>
 <th>Status</th>
-</tr>
-
-<tbody id="table"></tbody>
-
-</table>
-
-<script>
+</tr><tbody id="table"></tbody></table><script>
 
 const firebaseConfig={
-databaseURL:"YOUR_FIREBASE_DATABASE_URL"
-};
+databaseURL:"https://st-as-a53b9-default-rtdb.asia-southeast1.firebasedatabase.app"
+}
 
-firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig)
 
-const db=firebase.database();
+const db=firebase.database()
 
-let present=0;
-let late=0;
+let present=0
+let late=0
+let permit=0
 
-const chart=new Chart(document.getElementById("chart"),{
+const barChart=new Chart(document.getElementById("barChart"),{
 
 type:'bar',
 
 data:{
-labels:['Present','Late'],
+labels:['Present','Late','Permitted'],
 datasets:[{
-data:[0,0],
-backgroundColor:['green','red']
+data:[0,0,0],
+backgroundColor:['#22c55e','#f59e0b','#3b82f6']
 }]
 }
 
-});
+})
+
+const pieChart=new Chart(document.getElementById("pieChart"),{
+
+type:'pie',
+
+data:{
+labels:['Present','Late','Permitted'],
+datasets:[{
+data:[0,0,0],
+backgroundColor:['#22c55e','#f59e0b','#3b82f6']
+}]
+}
+
+})
 
 db.ref("attendance").on("child_added",function(snapshot){
 
@@ -164,51 +185,40 @@ let data=snapshot.val()
 
 let row=document.createElement("tr")
 
+let statusClass=""
+
+if(data.status=="Present"){present++;statusClass="statusPresent"}
+if(data.status=="Late"){late++;statusClass="statusLate"}
+if(data.status=="Permitted"){permit++;statusClass="statusPermit"}
+if(data.status=="Unknown"){statusClass="statusUnknown"}
+
 row.innerHTML=`
+<td><img src="${data.photo || ''}"></td>
 <td>${data.name}</td>
 <td>${data.date}</td>
 <td>${data.time}</td>
-<td>${data.status}</td>
+<td class="${statusClass}">${data.status}</td>
 `
 
 document.getElementById("table").appendChild(row)
 
-if(data.status=="Present")present++
-if(data.status=="Late")late++
-
 document.getElementById("present").innerText=present
 document.getElementById("late").innerText=late
+document.getElementById("permit").innerText=permit
 
-let total=present+late
+barChart.data.datasets[0].data=[present,late,permit]
+pieChart.data.datasets[0].data=[present,late,permit]
 
-if(total>0){
-let percent=Math.round((present/total)*100)
-document.getElementById("percent").innerText=percent+"%"
-}
-
-chart.data.datasets[0].data=[present,late]
-chart.update()
+barChart.update()
+pieChart.update()
 
 })
 
-function login(){
+db.ref("students").on("value",function(snapshot){
 
-let id=prompt("Enter HOD ID")
-let pass=prompt("Enter Password")
-
-if(id=="Png_is_hod" && pass=="9014381494"){
-loadStudents()
-}else{
-alert("Access denied")
-}
-
-}
-
-function loadStudents(){
+document.getElementById("total").innerText=snapshot.numChildren()
 
 let div=document.getElementById("students")
-
-db.ref("students").on("value",function(snapshot){
 
 div.innerHTML=""
 
@@ -216,36 +226,48 @@ snapshot.forEach(function(child){
 
 let name=child.val().name
 
-let s=document.createElement("div")
+let btn=document.createElement("div")
 
-s.className="student"
+btn.className="studentBtn"
 
-s.innerHTML=name+" <button onclick=\"permit('"+name+"')\">Permit</button>"
+btn.innerText=name
 
-div.appendChild(s)
-
-})
-
-})
-
-}
-
-function permit(name){
+btn.onclick=function(){
 
 let now=new Date()
 
 db.ref("attendance").push({
-
 name:name,
 date:now.toISOString().slice(0,10),
 time:now.toTimeString().slice(0,8),
 status:"Permitted"
-
 })
+
+alert(name+" permitted")
 
 }
 
-</script>
+div.appendChild(btn)
 
-</body>
-</html>
+})
+
+})
+
+function hodLogin(){
+
+let id=prompt("Enter HOD ID")
+let pass=prompt("Enter Password")
+
+if(id=="ECE HOD 88" && pass=="9090png"){
+
+document.getElementById("hodPanel").style.display="block"
+
+}else{
+
+alert("Access Denied")
+
+}
+
+}
+
+</script></body></html>
