@@ -13,67 +13,50 @@
 
 body{
 font-family:Arial;
-background:linear-gradient(135deg,#1e3a8a,#0f172a,#0ea5e9);
+background:linear-gradient(120deg,#0f172a,#1e3a8a);
 color:white;
 text-align:center;
 margin:0;
 }
 
-/* HEADER */
-
 header{
-background:linear-gradient(90deg,#0284c7,#38bdf8);
-padding:30px;
-font-size:32px;
+background:#0284c7;
+padding:20px;
+font-size:28px;
 font-weight:bold;
-box-shadow:0px 5px 20px black;
+animation:glow 3s infinite alternate;
 }
 
-/* DASHBOARD CARDS */
+@keyframes glow{
+from{box-shadow:0 0 10px #38bdf8;}
+to{box-shadow:0 0 25px #38bdf8;}
+}
+
+.dashboard{
+display:flex;
+justify-content:center;
+gap:40px;
+margin-top:20px;
+}
 
 .card{
-display:inline-block;
 background:#1e293b;
-padding:25px;
-margin:15px;
-border-radius:15px;
+padding:20px;
+border-radius:10px;
 width:200px;
-box-shadow:0px 10px 25px black;
-transition:0.3s;
 }
 
-.card:hover{
-transform:scale(1.07);
-}
-
-.card h1{
+.card h2{
+margin:0;
 font-size:40px;
 color:#22c55e;
 }
 
-/* BUTTON */
-
-button{
-padding:12px 25px;
-background:#22c55e;
-border:none;
-color:white;
-font-size:16px;
-border-radius:8px;
-cursor:pointer;
-}
-
-button:hover{
-background:#16a34a;
-}
-
-/* TABLE */
-
 table{
-width:90%;
+width:85%;
 margin:auto;
-border-collapse:collapse;
 margin-top:30px;
+border-collapse:collapse;
 background:#1e293b;
 border-radius:10px;
 overflow:hidden;
@@ -81,7 +64,7 @@ overflow:hidden;
 
 th{
 background:#0284c7;
-padding:15px;
+padding:12px;
 }
 
 td{
@@ -89,27 +72,40 @@ padding:12px;
 border-bottom:1px solid #475569;
 }
 
-tr:hover{
-background:#334155;
-}
-
-/* STUDENT LIST */
-
 .student{
 background:#334155;
 padding:10px;
-margin:6px;
-border-radius:8px;
+margin:5px;
 cursor:pointer;
+border-radius:6px;
+transition:0.3s;
 }
 
 .student:hover{
 background:#475569;
+transform:scale(1.05);
 }
 
-canvas{
-background:white;
-border-radius:10px;
+button{
+background:#22c55e;
+border:none;
+padding:10px 20px;
+color:white;
+font-size:16px;
+border-radius:6px;
+cursor:pointer;
+}
+
+button:hover{
+background:#16a34a;
+}
+
+#login{
+display:none;
+margin-top:20px;
+}
+
+#students{
 margin-top:20px;
 }
 
@@ -120,47 +116,48 @@ margin-top:20px;
 <body>
 
 <header>
-
-VEMU INSTITUTION OF TECHNOLOGY
+VEMU INSTITUTION OF TECHNOLOGY<br>
 SMART ATTENDANCE SYSTEM (ECE-B)
-
 </header>
 
-<br>
-
-<div class="card">
-<h3>Total Students</h3>
-<h1 id="students">0</h1>
-</div>
+<div class="dashboard">
 
 <div class="card">
 <h3>Present</h3>
-<h1 id="present">0</h1>
+<h2 id="presentCount">0</h2>
 </div>
 
 <div class="card">
 <h3>Late</h3>
-<h1 id="late">0</h1>
+<h2 id="lateCount">0</h2>
 </div>
 
-<div class="card">
-<h3>Attendance %</h3>
-<h1 id="percent">0%</h1>
 </div>
 
-<canvas id="chart" width="400" height="200"></canvas>
+<canvas id="chart" width="400" height="150"></canvas>
 
-<br><br>
+<br>
 
-<button onclick="hodLogin()">HOD Permission</button>
+<button onclick="openLogin()">HOD Permission</button>
 
-<div id="studentsList"></div>
+<div id="login">
+
+<h3>HOD Login</h3>
+
+<input id="hodid" placeholder="HOD ID"><br><br>
+<input id="hodpass" type="password" placeholder="Password"><br><br>
+
+<button onclick="login()">Login</button>
+
+</div>
+
+<div id="students"></div>
 
 <table>
 
 <tr>
-<th>Photo</th>
 <th>Name</th>
+<th>Date</th>
 <th>Time</th>
 <th>Status</th>
 </tr>
@@ -172,7 +169,7 @@ SMART ATTENDANCE SYSTEM (ECE-B)
 <script>
 
 const firebaseConfig={
-databaseURL:"https://st-as-a53b9-default-rtdb.asia-southeast1.firebasedatabase.app"
+databaseURL:"YOUR_FIREBASE_DATABASE_URL"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -181,7 +178,8 @@ const db=firebase.database();
 
 let present=0;
 let late=0;
-let totalStudents=0;
+
+const table=document.getElementById("table");
 
 const chart=new Chart(document.getElementById("chart"),{
 
@@ -190,7 +188,6 @@ type:'bar',
 data:{
 labels:['Present','Late'],
 datasets:[{
-label:'Attendance',
 data:[0,0],
 backgroundColor:['#22c55e','#ef4444']
 }]
@@ -198,126 +195,100 @@ backgroundColor:['#22c55e','#ef4444']
 
 });
 
-// LOAD REGISTERED STUDENTS COUNT
+db.ref("attendance").on("child_added",function(snapshot){
 
-db.ref("students").once("value",(snap)=>{
-
-snap.forEach(()=>{
-
-totalStudents++;
-
-});
-
-document.getElementById("students").innerText=totalStudents;
-
-});
-
-// ATTENDANCE DATA
-
-db.ref("attendance").on("child_added",(snap)=>{
-
-let data=snap.val();
+let data=snapshot.val();
 
 let row=document.createElement("tr");
 
 row.innerHTML=`
-<td><img src="${data.photo}" width="50"></td>
 <td>${data.name}</td>
+<td>${data.date}</td>
 <td>${data.time}</td>
 <td>${data.status}</td>
 `;
 
-document.getElementById("table").appendChild(row);
+table.appendChild(row);
 
-if(data.status=="Present")present++;
-if(data.status=="Late")late++;
+if(data.status=="Present") present++;
+if(data.status=="Late") late++;
 
-document.getElementById("present").innerText=present;
-document.getElementById("late").innerText=late;
+document.getElementById("presentCount").innerText=present;
+document.getElementById("lateCount").innerText=late;
 
 chart.data.datasets[0].data=[present,late];
 chart.update();
 
-// ATTENDANCE %
-
-let total=present+late;
-
-if(total>0){
-
-let percent=Math.round((present/total)*100);
-
-document.getElementById("percent").innerText=percent+"%";
-
-}
-
 });
 
-// HOD LOGIN
 
-function hodLogin(){
+function openLogin(){
+document.getElementById("login").style.display="block";
+}
 
-let id=prompt("Enter HOD ID");
-let pass=prompt("Enter Password");
+function login(){
+
+let id=document.getElementById("hodid").value
+let pass=document.getElementById("hodpass").value
 
 if(id=="Png_is_hod" && pass=="9014381494"){
 
-loadStudents();
+alert("Login Successful")
+loadStudents()
 
 }else{
 
-alert("Access Denied");
+alert("Wrong Credentials")
 
 }
 
 }
 
-// LOAD STUDENT LIST
 
 function loadStudents(){
 
-let div=document.getElementById("studentsList");
+let div=document.getElementById("students")
 
-div.innerHTML="";
+db.ref("students").on("value",function(snapshot){
 
-db.ref("students").once("value",(snap)=>{
+div.innerHTML=""
 
-snap.forEach((child)=>{
+snapshot.forEach(function(child){
 
-let name=child.val().name;
+let name=child.val().name
 
-let s=document.createElement("div");
+let s=document.createElement("div")
 
-s.className="student";
+s.className="student"
 
-s.innerText=name;
+s.innerHTML=name+" <button onclick=\"permit('"+name+"')\">Permit</button>"
 
-s.onclick=function(){permit(name)};
+div.appendChild(s)
 
-div.appendChild(s);
+})
 
-});
-
-});
+})
 
 }
 
-// PERMIT STUDENT
 
 function permit(name){
 
-let now=new Date();
+let now=new Date()
 
-let time=now.toLocaleTimeString();
+let date=now.toISOString().slice(0,10)
+let time=now.toTimeString().slice(0,8)
 
 db.ref("attendance").push({
 
 name:name,
+date:date,
 time:time,
 status:"Permitted"
 
-});
+})
 
-alert(name+" Permitted");
+alert(name+" permitted by HOD")
 
 }
 
