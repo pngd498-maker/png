@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>VEMU Smart Attendance</title>
@@ -12,54 +13,104 @@
 
 body{
 font-family:Arial;
-background:linear-gradient(135deg,#0f172a,#1e3a8a);
+background:linear-gradient(135deg,#1e3a8a,#0f172a,#0ea5e9);
 color:white;
 text-align:center;
+margin:0;
 }
 
+/* HEADER */
+
 header{
-background:#0284c7;
-padding:25px;
-font-size:28px;
+background:linear-gradient(90deg,#0284c7,#38bdf8);
+padding:30px;
+font-size:32px;
+font-weight:bold;
+box-shadow:0px 5px 20px black;
 }
+
+/* DASHBOARD CARDS */
 
 .card{
 display:inline-block;
 background:#1e293b;
-padding:20px;
-margin:10px;
-border-radius:10px;
+padding:25px;
+margin:15px;
+border-radius:15px;
+width:200px;
+box-shadow:0px 10px 25px black;
+transition:0.3s;
 }
 
+.card:hover{
+transform:scale(1.07);
+}
+
+.card h1{
+font-size:40px;
+color:#22c55e;
+}
+
+/* BUTTON */
+
 button{
-padding:10px 20px;
+padding:12px 25px;
 background:#22c55e;
 border:none;
 color:white;
+font-size:16px;
+border-radius:8px;
 cursor:pointer;
 }
 
+button:hover{
+background:#16a34a;
+}
+
+/* TABLE */
+
 table{
-width:80%;
+width:90%;
 margin:auto;
 border-collapse:collapse;
+margin-top:30px;
+background:#1e293b;
+border-radius:10px;
+overflow:hidden;
 }
 
 th{
 background:#0284c7;
-padding:12px;
+padding:15px;
 }
 
 td{
-padding:10px;
-border-bottom:1px solid gray;
+padding:12px;
+border-bottom:1px solid #475569;
 }
+
+tr:hover{
+background:#334155;
+}
+
+/* STUDENT LIST */
 
 .student{
 background:#334155;
 padding:10px;
-margin:5px;
+margin:6px;
+border-radius:8px;
 cursor:pointer;
+}
+
+.student:hover{
+background:#475569;
+}
+
+canvas{
+background:white;
+border-radius:10px;
+margin-top:20px;
 }
 
 </style>
@@ -71,35 +122,44 @@ cursor:pointer;
 <header>
 
 VEMU INSTITUTION OF TECHNOLOGY
-SMART ATTENDANCE SYSTEM ECE-B
+SMART ATTENDANCE SYSTEM (ECE-B)
 
 </header>
 
-<div class="card">
+<br>
 
-<h2>Present</h2>
+<div class="card">
+<h3>Total Students</h3>
+<h1 id="students">0</h1>
+</div>
+
+<div class="card">
+<h3>Present</h3>
 <h1 id="present">0</h1>
-
 </div>
 
 <div class="card">
-
-<h2>Late</h2>
+<h3>Late</h3>
 <h1 id="late">0</h1>
-
 </div>
 
-<canvas id="chart"></canvas>
+<div class="card">
+<h3>Attendance %</h3>
+<h1 id="percent">0%</h1>
+</div>
+
+<canvas id="chart" width="400" height="200"></canvas>
 
 <br><br>
 
-<button onclick="login()">HOD Permission</button>
+<button onclick="hodLogin()">HOD Permission</button>
 
-<div id="students"></div>
+<div id="studentsList"></div>
 
 <table>
 
 <tr>
+<th>Photo</th>
 <th>Name</th>
 <th>Time</th>
 <th>Status</th>
@@ -113,14 +173,15 @@ SMART ATTENDANCE SYSTEM ECE-B
 
 const firebaseConfig={
 databaseURL:"https://st-as-a53b9-default-rtdb.asia-southeast1.firebasedatabase.app"
-}
+};
 
-firebase.initializeApp(firebaseConfig)
+firebase.initializeApp(firebaseConfig);
 
-const db=firebase.database()
+const db=firebase.database();
 
-let present=0
-let late=0
+let present=0;
+let late=0;
+let totalStudents=0;
 
 const chart=new Chart(document.getElementById("chart"),{
 
@@ -129,88 +190,124 @@ type:'bar',
 data:{
 labels:['Present','Late'],
 datasets:[{
+label:'Attendance',
 data:[0,0],
-backgroundColor:['green','red']
+backgroundColor:['#22c55e','#ef4444']
 }]
 }
 
-})
+});
+
+// LOAD REGISTERED STUDENTS COUNT
+
+db.ref("students").once("value",(snap)=>{
+
+snap.forEach(()=>{
+
+totalStudents++;
+
+});
+
+document.getElementById("students").innerText=totalStudents;
+
+});
+
+// ATTENDANCE DATA
 
 db.ref("attendance").on("child_added",(snap)=>{
 
-let data=snap.val()
+let data=snap.val();
 
-let row=document.createElement("tr")
+let row=document.createElement("tr");
 
 row.innerHTML=`
+<td><img src="${data.photo}" width="50"></td>
 <td>${data.name}</td>
 <td>${data.time}</td>
 <td>${data.status}</td>
-`
+`;
 
-document.getElementById("table").appendChild(row)
+document.getElementById("table").appendChild(row);
 
-if(data.status=="Present")present++
-if(data.status=="Late")late++
+if(data.status=="Present")present++;
+if(data.status=="Late")late++;
 
-document.getElementById("present").innerText=present
-document.getElementById("late").innerText=late
+document.getElementById("present").innerText=present;
+document.getElementById("late").innerText=late;
 
-chart.data.datasets[0].data=[present,late]
-chart.update()
+chart.data.datasets[0].data=[present,late];
+chart.update();
 
-})
+// ATTENDANCE %
 
-function login(){
+let total=present+late;
 
-let id=prompt("Enter HOD ID")
-let pass=prompt("Enter Password")
+if(total>0){
+
+let percent=Math.round((present/total)*100);
+
+document.getElementById("percent").innerText=percent+"%";
+
+}
+
+});
+
+// HOD LOGIN
+
+function hodLogin(){
+
+let id=prompt("Enter HOD ID");
+let pass=prompt("Enter Password");
 
 if(id=="Png_is_hod" && pass=="9014381494"){
 
-loadStudents()
+loadStudents();
 
 }else{
 
-alert("Invalid Login")
+alert("Access Denied");
 
 }
 
 }
+
+// LOAD STUDENT LIST
 
 function loadStudents(){
 
-let div=document.getElementById("students")
+let div=document.getElementById("studentsList");
 
-div.innerHTML=""
+div.innerHTML="";
 
 db.ref("students").once("value",(snap)=>{
 
 snap.forEach((child)=>{
 
-let name=child.val().name
+let name=child.val().name;
 
-let s=document.createElement("div")
+let s=document.createElement("div");
 
-s.className="student"
+s.className="student";
 
-s.innerText=name
+s.innerText=name;
 
-s.onclick=function(){permit(name)}
+s.onclick=function(){permit(name)};
 
-div.appendChild(s)
+div.appendChild(s);
 
-})
+});
 
-})
+});
 
 }
 
+// PERMIT STUDENT
+
 function permit(name){
 
-let now=new Date()
+let now=new Date();
 
-let time=now.toLocaleTimeString()
+let time=now.toLocaleTimeString();
 
 db.ref("attendance").push({
 
@@ -218,9 +315,9 @@ name:name,
 time:time,
 status:"Permitted"
 
-})
+});
 
-alert(name+" Permitted")
+alert(name+" Permitted");
 
 }
 
