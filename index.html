@@ -13,29 +13,22 @@
 
 body{
 font-family:Arial;
-background:linear-gradient(120deg,#0f172a,#1e3a8a);
+background:linear-gradient(135deg,#1e3a8a,#0f172a,#0ea5e9);
 color:white;
 text-align:center;
-margin:0;
 }
 
 header{
-background:#0284c7;
-padding:20px;
-font-size:28px;
+background:linear-gradient(90deg,#0284c7,#38bdf8);
+padding:30px;
+font-size:32px;
 font-weight:bold;
-animation:glow 3s infinite alternate;
-}
-
-@keyframes glow{
-from{box-shadow:0 0 10px #38bdf8;}
-to{box-shadow:0 0 25px #38bdf8;}
 }
 
 .dashboard{
 display:flex;
 justify-content:center;
-gap:40px;
+gap:30px;
 margin-top:20px;
 }
 
@@ -44,22 +37,19 @@ background:#1e293b;
 padding:20px;
 border-radius:10px;
 width:200px;
+transition:0.3s;
 }
 
-.card h2{
-margin:0;
-font-size:40px;
-color:#22c55e;
+.card:hover{
+transform:scale(1.1);
 }
 
 table{
-width:85%;
+width:90%;
 margin:auto;
 margin-top:30px;
 border-collapse:collapse;
 background:#1e293b;
-border-radius:10px;
-overflow:hidden;
 }
 
 th{
@@ -68,7 +58,7 @@ padding:12px;
 }
 
 td{
-padding:12px;
+padding:10px;
 border-bottom:1px solid #475569;
 }
 
@@ -77,13 +67,6 @@ background:#334155;
 padding:10px;
 margin:5px;
 cursor:pointer;
-border-radius:6px;
-transition:0.3s;
-}
-
-.student:hover{
-background:#475569;
-transform:scale(1.05);
 }
 
 button{
@@ -96,19 +79,6 @@ border-radius:6px;
 cursor:pointer;
 }
 
-button:hover{
-background:#16a34a;
-}
-
-#login{
-display:none;
-margin-top:20px;
-}
-
-#students{
-margin-top:20px;
-}
-
 </style>
 
 </head>
@@ -116,40 +86,35 @@ margin-top:20px;
 <body>
 
 <header>
-VEMU INSTITUTION OF TECHNOLOGY<br>
-SMART ATTENDANCE SYSTEM (ECE-B)
+VEMU INSTITUTION OF TECHNOLOGY
+<br>
+SMART ATTENDANCE SYSTEM
 </header>
 
 <div class="dashboard">
 
 <div class="card">
 <h3>Present</h3>
-<h2 id="presentCount">0</h2>
+<h1 id="present">0</h1>
 </div>
 
 <div class="card">
 <h3>Late</h3>
-<h2 id="lateCount">0</h2>
+<h1 id="late">0</h1>
+</div>
+
+<div class="card">
+<h3>Attendance %</h3>
+<h1 id="percent">0%</h1>
 </div>
 
 </div>
 
-<canvas id="chart" width="400" height="150"></canvas>
+<canvas id="chart"></canvas>
 
 <br>
 
-<button onclick="openLogin()">HOD Permission</button>
-
-<div id="login">
-
-<h3>HOD Login</h3>
-
-<input id="hodid" placeholder="HOD ID"><br><br>
-<input id="hodpass" type="password" placeholder="Password"><br><br>
-
-<button onclick="login()">Login</button>
-
-</div>
+<button onclick="login()">HOD Permission</button>
 
 <div id="students"></div>
 
@@ -179,8 +144,6 @@ const db=firebase.database();
 let present=0;
 let late=0;
 
-const table=document.getElementById("table");
-
 const chart=new Chart(document.getElementById("chart"),{
 
 type:'bar',
@@ -189,7 +152,7 @@ data:{
 labels:['Present','Late'],
 datasets:[{
 data:[0,0],
-backgroundColor:['#22c55e','#ef4444']
+backgroundColor:['green','red']
 }]
 }
 
@@ -197,53 +160,49 @@ backgroundColor:['#22c55e','#ef4444']
 
 db.ref("attendance").on("child_added",function(snapshot){
 
-let data=snapshot.val();
+let data=snapshot.val()
 
-let row=document.createElement("tr");
+let row=document.createElement("tr")
 
 row.innerHTML=`
 <td>${data.name}</td>
 <td>${data.date}</td>
 <td>${data.time}</td>
 <td>${data.status}</td>
-`;
+`
 
-table.appendChild(row);
+document.getElementById("table").appendChild(row)
 
-if(data.status=="Present") present++;
-if(data.status=="Late") late++;
+if(data.status=="Present")present++
+if(data.status=="Late")late++
 
-document.getElementById("presentCount").innerText=present;
-document.getElementById("lateCount").innerText=late;
+document.getElementById("present").innerText=present
+document.getElementById("late").innerText=late
 
-chart.data.datasets[0].data=[present,late];
-chart.update();
+let total=present+late
 
-});
-
-
-function openLogin(){
-document.getElementById("login").style.display="block";
+if(total>0){
+let percent=Math.round((present/total)*100)
+document.getElementById("percent").innerText=percent+"%"
 }
+
+chart.data.datasets[0].data=[present,late]
+chart.update()
+
+})
 
 function login(){
 
-let id=document.getElementById("hodid").value
-let pass=document.getElementById("hodpass").value
+let id=prompt("Enter HOD ID")
+let pass=prompt("Enter Password")
 
 if(id=="Png_is_hod" && pass=="9014381494"){
-
-alert("Login Successful")
 loadStudents()
-
 }else{
-
-alert("Wrong Credentials")
-
+alert("Access denied")
 }
 
 }
-
 
 function loadStudents(){
 
@@ -271,24 +230,18 @@ div.appendChild(s)
 
 }
 
-
 function permit(name){
 
 let now=new Date()
 
-let date=now.toISOString().slice(0,10)
-let time=now.toTimeString().slice(0,8)
-
 db.ref("attendance").push({
 
 name:name,
-date:date,
-time:time,
+date:now.toISOString().slice(0,10),
+time:now.toTimeString().slice(0,8),
 status:"Permitted"
 
 })
-
-alert(name+" permitted by HOD")
 
 }
 
